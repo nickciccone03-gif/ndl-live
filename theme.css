@@ -1,0 +1,32 @@
+/* Shared by every page: colors, type, header, panels and the page tabs. */
+:root {
+  --bg: #050505; --panel: #111010; --panel-2: #191714; --line: #2b261c; --text: #f4efe3; --muted: #9d9483;
+  --accent: #d4ad4f; --accent-hi: #f0cf7a; --win: #7fcf8a; --loss: #e57b6e; --sticky: #111010;
+  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  --display: "Barlow Condensed", "Arial Narrow", sans-serif;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: radial-gradient(120% 60% at 50% -10%, #1c170c 0%, var(--bg) 60%) no-repeat, var(--bg); color: var(--text);
+  font: 15px/1.4 var(--font); font-variant-numeric: tabular-nums; min-height: 100vh; }
+main { max-width: 1180px; margin: 0 auto; padding: 12px 16px calc(32px + env(safe-area-inset-bottom)); }
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 0 16px; }
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.brand img { width: 56px; height: 56px; border-radius: 10px; flex: none; box-shadow: 0 0 0 1px var(--line); }
+h1 { margin: 0; font: 700 26px/1 var(--display); letter-spacing: .04em; text-transform: uppercase; color: var(--accent-hi); }
+h1 span { display: block; margin-top: 4px; font: 600 12px/1 var(--display); letter-spacing: .2em; color: var(--muted); }
+.updated { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.updated.stale { color: var(--loss); }
+section { background: var(--panel); border: 1px solid var(--line); border-top: 2px solid var(--accent); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+.head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+h2 { margin: 0; font: 700 17px/1 var(--display); text-transform: uppercase; letter-spacing: .1em; color: var(--accent); }
+.note { margin: 0; padding: 10px 14px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); }
+.warn { color: var(--loss); }
+
+/* Page tabs */
+.tabs { display: flex; gap: 4px; margin: 0 0 16px; padding: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.tabs a { flex: 1; display: grid; place-items: center; min-height: 40px; border-radius: 7px; color: var(--muted); text-decoration: none;
+  font: 700 15px/1 var(--display); letter-spacing: .1em; text-transform: uppercase; }
+.tabs a:hover { color: var(--text); }
+.tabs a[aria-current="page"] { background: var(--accent); color: #000; }
+.tabs a:focus-visible { outline: 2px solid var(--accent-hi); outline-offset: 2px; }
