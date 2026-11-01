@@ -61,19 +61,33 @@ export async function loadLeague(leagueId, week) {
   for (const t of teams) (groups[(t.pct ?? 0).toFixed(6)] ??= []).push(t);
   for (const g of Object.values(groups)) for (const t of g) {
     let w = 0, l = 0, tie = 0;
-    for (const o of g) if (o !== t && t.h2h[o.id]) { w += t.h2h[o.id].w; l += t.h2h[o.id].l; tie += t.h2h[o.id].t; }
+    t.tieGames = [];
+    for (const o of g) if (o !== t && t.h2h[o.id]) { const h = t.h2h[o.id]; w += h.w; l += h.l; tie += h.t; t.tieGames.push({ opponent: o, ...h }); }
     t.tiePct = g.length > 1 ? pct(w, l, tie) : null;
     t.tieRecord = g.length > 1 ? `${w}-${l}${tie ? `-${tie}` : ""}` : null;
   }
   teams.sort((a, b) => (b.pct ?? 0) - (a.pct ?? 0) || (b.tiePct ?? 0) - (a.tiePct ?? 0) || b.pf - a.pf || (b.allPct ?? 0) - (a.allPct ?? 0));
   teams.forEach((t, i) => { t.rank = i + 1; });
 
+  // Each tied group in table order, with the rule that put every team above the next one down.
+  const tiebreaks = Object.values(groups).filter((g) => g.length > 1).map((g) => g.sort((a, b) => a.rank - b.rank))
+    .sort((a, b) => a[0].rank - b[0].rank).map((g) => ({ rows: g.map((t, i) => ({ team: t, over: g[i + 1] ? decidedBy(t, g[i + 1]) : null })) }));
+
   // Records must agree with Sleeper's own counts, or the page says so instead of showing a wrong table.
   const mismatched = completed ? teams.filter((t) => t.w !== (t.source.wins ?? 0) || t.l !== (t.source.losses ?? 0) || t.t !== (t.source.ties ?? 0)) : [];
 
   return { league, state, teams, byId, completed, playerIds: rosters.flatMap((r) => [...(r.players ?? []), ...(r.reserve ?? []), ...(r.taxi ?? [])]),
     slots: (league.roster_positions ?? []).filter((p) => p !== "BN" && p !== "IR" && p !== "TAXI"), lastRegular, current, shown, inProgress: shown > scored,
-    matchups: pairs(matchups[shown], byId), draft: await draftRace(teams, byId, picks, league, leagueId), mismatched };
+    matchups: pairs(matchups[shown], byId), draft: await draftRace(teams, byId, picks, league, leagueId), mismatched, tiebreaks };
+}
+
+/** The first rule in the league order that separates two teams tied on win %, and both sides of it. */
+function decidedBy(a, b) {
+  const p = (n) => n == null ? "—" : n.toFixed(3).replace(/^0/, "");
+  if ((a.tiePct ?? 0) !== (b.tiePct ?? 0)) return { rule: "Head-to-head", a: a.tieRecord, b: b.tieRecord };
+  if (a.pf !== b.pf) return { rule: "Points", a: a.pf.toFixed(2), b: b.pf.toFixed(2) };
+  if ((a.allPct ?? 0) !== (b.allPct ?? 0)) return { rule: "All-play", a: p(a.allPct), b: p(b.allPct) };
+  return { rule: "Coin flip", a: "", b: "" };
 }
 
 function pairs(entries, byId) {

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#050505">
-<title>NDL Live</title>
+<title>NDL Central</title>
 <link rel="icon" href="logo.webp" type="image/webp">
 <link rel="apple-touch-icon" href="logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -115,6 +115,21 @@
   .bench-h { margin: 0; padding: 18px 16px 8px; font: 700 15px/1 var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; }
   .lineup.bench .slot { color: var(--muted); }
 
+  /* Tiebreakers */
+  .tie-h { margin: 0; padding: 10px 14px; background: var(--panel-2); border-bottom: 1px solid var(--line); font: 700 14px/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .tie-h b { color: var(--accent-hi); font-weight: 700; }
+  .tiebreak { table-layout: fixed; }
+  .tiebreak td { height: auto; padding: 10px 8px; white-space: normal; vertical-align: top; text-align: left; }
+  .tiebreak td:first-child { width: 30px; padding-left: 14px; color: var(--muted); }
+  .tiebreak td:last-child { width: 40%; padding-right: 14px; }
+  .tiebreak .name { display: block; font-weight: 600; }
+  .tiebreak .vsgames { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+  .tiebreak .vsgames .W, .tiebreak .vsgames .L { font-weight: 600; }
+  .tiebreak .rule { display: block; font: 700 15px/1.1 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+  .tiebreak .vs { display: block; margin-top: 3px; font-size: 12px; color: var(--muted); }
+  .tiebreak .vs b { color: var(--text); font-weight: 600; }
+  .tiebreak tr.last td { border-bottom: 2px solid var(--line); }
+
   .error { padding: 16px 14px; color: var(--loss); }
   .loading { padding: 24px 14px; color: var(--muted); }
 
@@ -132,7 +147,7 @@
 <main>
   <header>
     <div class="brand"><img src="logo.webp" alt="The NDL Fantasy Football League" width="56" height="56">
-      <h1 id="title">The NDL<span>Live Scoreboard</span></h1></div>
+      <h1 id="title">NDL Central</h1></div>
     <span class="updated" id="updated" aria-live="polite"></span>
   </header>
   <nav class="tabs" aria-label="Pages"><a href="./" aria-current="page">Scoreboard</a><a href="bylaws.html">Bylaws</a></nav>
@@ -157,6 +172,11 @@
       <div class="head"><h2 id="draft-h">Draft Order Race</h2><span class="updated" id="draft-season"></span></div>
       <div class="scroll" id="draft"><div class="loading">Loading…</div></div>
       <p class="note" id="draft-note"></p>
+    </section>
+    <section aria-labelledby="ties-h" class="ties" id="ties-section" hidden>
+      <div class="head"><h2 id="ties-h">Tiebreakers</h2><span class="updated">Why the higher team is higher</span></div>
+      <div id="ties"></div>
+      <p class="note">Order: win %, then record among the tied teams, then points scored, then all-play win %, then a coin flip.</p>
     </section>
   </div>
 </main>
@@ -309,6 +329,27 @@
       : "If the season ended now: potential points (best possible lineup each week), lowest picks first. Ahead: PP over the pick before. Picks 11 and 12 go to the runner-up and champion.";
   }
 
+  function renderTies(d) {
+    $("ties-section").hidden = !d.tiebreaks.length;
+    const h2h = (t) => `${t.tieRecord}${t.tiePct == null ? "" : ` (${pct(t.tiePct)})`}`;
+    const game = (g) => {
+      const n = g.w + g.l + g.t, res = g.w > g.l ? "W" : g.l > g.w ? "L" : "T";
+      return `<span class="${res}">${n === 1 ? res : rec(g.w, g.l, g.t)}</span> ${esc(g.opponent.name)}`;
+    };
+    $("ties").innerHTML = d.tiebreaks.map((g) => {
+      const t0 = g.rows[0].team;
+      return `<h3 class="tie-h"><b>${rec(t0.w, t0.l, t0.t)}</b> · ${g.rows.length} teams tied at ${pct(t0.pct)}</h3>
+      <table class="tiebreak"><tbody>${g.rows.map((r, i) => {
+        const t = r.team, next = g.rows[i + 1]?.team;
+        const games = t.tieGames.length ? `H2H ${h2h(t)}: ${t.tieGames.map(game).join(" · ")}` : "No games against the other tied teams";
+        const why = !r.over ? `<span class="vs">Lowest of the tie</span>`
+          : `<span class="rule">${r.over.rule}</span><span class="vs">${r.over.rule === "Coin flip" ? `Still tied with ${esc(next.name)}`
+            : `<b>${esc(r.over.rule === "Head-to-head" ? h2h(t) : r.over.a)}</b> to ${esc(r.over.rule === "Head-to-head" ? h2h(next) : r.over.b)} over ${esc(next.name)}`}</span>`;
+        return `<tr${i === g.rows.length - 1 ? ` class="last"` : ""}><td>${t.rank}</td><td><span class="name">${esc(t.name)}</span><span class="vsgames">${games}</span></td><td>${why}</td></tr>`;
+      }).join("")}</tbody></table>`;
+    }).join("");
+  }
+
   function stamp() {
     if (!lastOk) return;
     const stale = Date.now() - lastOk > REFRESH_MS * 3;
@@ -320,9 +361,7 @@
     try {
       data = await loadLeague(LEAGUE, week ?? undefined);
       week = data.shown; lastOk = Date.now();
-      document.title = `${data.league.name} Live`;
-      $("title").innerHTML = `${esc(data.league.name)}<span>${esc(data.league.season)} · Live Scoreboard</span>`;
-      renderGames(data); renderStandings(data); renderDraft(data);
+      renderGames(data); renderStandings(data); renderDraft(data); renderTies(data);
       if (open !== null) renderMatchup();
     } catch (e) {
       if (!data) for (const id of ["games", "standings", "draft"]) $(id).innerHTML = `<div class="error">Couldn't reach Sleeper. Retrying every minute.</div>`;

@@ -1,4 +1,4 @@
-# NDL Live
+# NDL Central
 
 Live scoreboard for The NDL: this week's matchups (tap one for both lineups), standings with the league's tiebreakers, and the next rookie draft's order race.
 
